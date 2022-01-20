@@ -10,9 +10,9 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow import keras
 
 def main():
-    labels: list[int]
+    labels: list[list[int]]
     nouns: list
-    INPUT_LENGTH=50
+    INPUT_LENGTH=20
 
     gpus = tf.config.experimental.list_physical_devices('GPU')
     if gpus:
@@ -28,9 +28,10 @@ def main():
 
     ## open file and load data
     with open('data/nouns.csv', 'r') as nouns_csv:
+        next(nouns_csv)
         data = list(csv.reader(nouns_csv))
-        labels = [int(row[0]) for row in data]
-        nouns = [row[1] for row in data]
+        nouns = [row[0] for row in data]
+        labels = [[int(row[1]), int(row[2])] for row in data]
         pass
 
     ## Tokenise and prepare word data
@@ -42,21 +43,22 @@ def main():
     ## Create NN
     model = keras.models.Sequential()
     model.add(keras.layers.Input(INPUT_LENGTH,))
-    model.add(keras.layers.Dense(128, activation='relu', name="First_Layer"))
-    model.add(keras.layers.Dense(1, activation='sigmoid', name="Output_Layer"))
+    model.add(keras.layers.Dense(256, activation='relu', name="First_Layer"))
+    model.add(keras.layers.Dense(2, activation='sigmoid', name="Output_Layer"))
     model.summary()
 
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
     # Train NN
     labels_array = array(labels, dtype='int')
-    model.fit(noun_data, labels_array, epochs=50)
+    model.fit(noun_data, labels_array, epochs=100)
 
     ## Predict a word
-    test_nouns = ['سَاخِرُون', 'سَاخِر']
+    test_nouns = ['سَاخِرُون', 'سَاخِر', 'سَاخِرَات', 'سَاخِرَة']
     test_nouns_tok = tokenizer.texts_to_sequences(test_nouns)
     test_nouns_tok = pad_sequences(test_nouns_tok, padding='post', maxlen=INPUT_LENGTH)
 
+    print(test_nouns[0])
     print(model.predict(test_nouns_tok))
 
 
