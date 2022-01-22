@@ -2,7 +2,6 @@
 # import numpy as np
 # from tensorflow import keras
 import csv
-from json import loads
 import tensorflow as tf
 from numpy import array
 from tensorflow.keras.preprocessing.text import Tokenizer
@@ -58,7 +57,6 @@ def main():
     test_nouns_tok = tokenizer.texts_to_sequences(test_nouns)
     test_nouns_tok = pad_sequences(test_nouns_tok, padding='post', maxlen=INPUT_LENGTH)
 
-    print(test_nouns[0])
     print(model.predict(test_nouns_tok))
 
 
