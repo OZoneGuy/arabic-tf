@@ -1,0 +1,141 @@
+#+options: ':nil *:t -:t ::t <:t H:3 \n:nil ^:{} arch:headline author:t
+#+options: broken-links:nil c:nil creator:nil d:(not "LOGBOOK") date:nil e:t
+#+options: email:nil f:t inline:t num:t p:nil pri:nil prop:nil stat:t tags:t
+#+options: tasks:t tex:t timestamp:t title:t toc:nil todo:nil |:t
+#+title: pres
+#+date: <2022-01-13 Thu>
+#+author:
+#+email: omar@BIGARCH
+#+language: en
+#+select_tags: export
+#+exclude_tags: noexport
+#+creator: Emacs 27.2 (Org mode 9.5.1)
+#+cite_export:
+
+#+latex_class: article
+#+latex_class_options:
+#+latex_header:
+#+latex_header_extra:
+#+description:
+#+keywords:
+#+subtitle:
+#+latex_compiler: pdflatex
+#+date: \today
+
+#+STARTUP: indent
+
+* The Data
+
+Before we can do anything we need to load the data and prepare it to be passed to the model.
+
+The data can be loaded from any source, in this instance it is loaded from a ~csv~ file.
+
+#+NAME: load-data
+#+begin_src python
+  with open('data/nouns.csv', 'r') as nouns_csv:
+      next(nouns_csv)
+      data = list(csv.reader(nouns_csv))
+      nouns = [row[0] for row in data]
+      labels = [[int(row[1]), int(row[2])] for row in data]
+      pass
+#+end_src
+
+In my case the data is in a table like this:
+
+| Noun | Plural | Masculine |
+|------+--------+-----------|
+| noun |    0-1 |       0-1 |
+
+
+Then we need to turn the characters into number. One approach would to convert them into their ASCII code, but the ~keras~ library offers a ~Tokenizer~, ~tensorflow.keras.preprocessing.text.Tokenizer~. This can be used to turn known tokens into numbers. The tokens can be letters or words.
+
+#+NAME: tokenize
+#+begin_src python
+  ## Tokenise and prepare word data
+  tokenizer = Tokenizer(num_words=50, char_level=True, oov_token='<OOV>')
+  tokenizer.fit_on_texts(nouns)
+  noun_data = tokenizer.texts_to_sequences(nouns)
+#+end_src
+
+~num_words~ is the maximum of number of tokens to remember.
+
+~char_level~ is a boolean to tell the tokenizer to tokenize on the character level.
+
+~oov_token~ is the token to use for any "unknown" token, any token not remembered. This can be used for anything, but try to choose something that will not show up in the actual text and will not affect the processing.
+
+Lastly, it is important to make sure that the input is of fixed length, ie. all of the input is the same length. We can use ~tensorflow.keras.preprocessing.sequence.pad_sequences~ to do just that.
+
+#+NAME: pad-input
+#+begin_src python
+  noun_data = pad_sequences(noun_data, padding='post', maxlen=INPUT_LENGTH)
+#+end_src
+
+You also need to prepare the labels, the output data.
+#+NAME: labels-prep
+#+begin_src python
+  labels_array = array(labels, dtype='int')
+#+end_src
+
+* The Model
+
+Now to the fun stuff! creating the actual model.
+
+** Creating the model
+
+Any neural network model consists of layers. There are many types of layers that used for different purposes; processing, predicting, etc. The most common layer is the ~Dense~ layer.
+
+First, create the model:
+#+NAME: create-model
+#+begin_src python
+  model = keras.models.Sequential()
+#+end_src
+
+Then you add the layers:
+#+NAME: add-layers
+#+begin_src python
+  model.add(keras.layers.Input(INPUT_LENGTH,))
+  model.add(keras.layers.Dense(256, activation='relu', name="First_Layer"))
+  model.add(keras.layers.Dense(2, activation='sigmoid', name="Output_Layer"))
+#+end_src
+
+The ~Input~ layer defines how many nodes/neurons to have for input. Can be not required, but will save a lot of time when troubleshooting errors.
+
+The ~Dense~ layer is where most of the processing happens. The number is the number of nodes in that layer. You can define its activation function by passing its name as a string or the function itself. You can also give it a name for troubleshooting.
+
+You can call ~model.summary()~ which will print out the layer in a readable format.
+#+NAME: model-summary
+#+begin_src python
+  model.summary()
+#+end_src
+
+Note: You can pass the layers as a list or line by line as shown above.
+
+** Compiling it
+
+Compiling is a one-liner, but very important.
+#+NANE: compile
+#+begin_src python
+  model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+#+end_src
+
+Here is where we define the ~optimizer~ and the ~loss~ function. We can also add any other metrics to show with each run. Here I added ~accuracy~.
+
+* Traning and Prediction
+
+Now comes the tranining. After preparing the data and compiling the model you can train it using the following line:
+#+begin_src python
+  model.fit(noun_data, labels_array, epochs=100)
+#+end_src
+
+~epochs~ is the number of iterations to run.
+
+You can then pass data to predict the output using the ~model.predict()~ function. We will need to first prepare the input then pass it to the function.
+#+NAME: predict
+#+begin_src python
+  ## Predict a word
+  test_nouns = ['سَاخِرُون', 'سَاخِر', 'سَاخِرَات', 'سَاخِرَة']
+  test_nouns_tok = tokenizer.texts_to_sequences(test_nouns)
+  test_nouns_tok = pad_sequences(test_nouns_tok, padding='post', maxlen=INPUT_LENGTH)
+
+  prediction = model.predict(test_nouns_tok)
+#+end_src
